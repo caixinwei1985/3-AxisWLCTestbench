@@ -1,0 +1,17 @@
+!/MDK-ARM/uart_extension_interface.uvprojx
+/EWARM/
+/MDK-ARM/
+Description&FW/
+*.MXPROJECT
+*.ioc
+~*
+*.d
+*.o
+*.crf
+*.elf
+*.hex
+*.bin
+*.htm
+*.bak
+*.lnp
+*.afx
