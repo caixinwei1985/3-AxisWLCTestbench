@@ -42,6 +42,7 @@ extern "C" {
 #include "stm32f0xx_ll_tim.h"
 #include "stm32f0xx_ll_usart.h"
 #include "stm32f0xx_ll_gpio.h"
+#include "stm32f0xx_hal_iwdg.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -176,7 +177,37 @@ uint32_t Get_GPIOPinBit(GPIO_TypeDef* port,uint32_t pin);
 #define MOTO_EVENT_OVERNEAR       0x00000040
 #define MOTO_EVENT_OVERFAR        0x00000080
 #define MOTO_EVENT_STEPOVER       0x00000100
-#define MOTO_EVENT_RX_COLLID      0x00000200
+#define MOTO_EVENT_RX_COLLID      0x10000000
+
+#define MOTO_EVENT_ZERO_ENTER_X     0x00000001
+#define MOTO_EVENT_ZERO_EXIT_X      0x00000002
+#define MOTO_EVENT_NEAR_ENTER_X     0x00000004
+#define MOTO_EVENT_NEAR_EXIT_X      0x00000008
+#define MOTO_EVENT_FAR_ENTER_X      0x00000010
+#define MOTO_EVENT_FAR_EXIT_X       0x00000020
+#define MOTO_EVENT_OVERNEAR_X       0x00000040
+#define MOTO_EVENT_OVERFAR_X        0x00000080
+#define MOTO_EVENT_STEPOVER_X       0x00000100
+
+#define MOTO_EVENT_ZERO_ENTER_Y     (0x00000001<<9)
+#define MOTO_EVENT_ZERO_EXIT_Y      (0x00000002<<9)
+#define MOTO_EVENT_NEAR_ENTER_Y     (0x00000004<<9)
+#define MOTO_EVENT_NEAR_EXIT_Y      (0x00000008<<9)
+#define MOTO_EVENT_FAR_ENTER_Y      (0x00000010<<9)
+#define MOTO_EVENT_FAR_EXIT_Y       (0x00000020<<9)
+#define MOTO_EVENT_OVERNEAR_Y       (0x00000040<<9)
+#define MOTO_EVENT_OVERFAR_Y        (0x00000080<<9)
+#define MOTO_EVENT_STEPOVER_Y       (0x00000100<<9)
+
+#define MOTO_EVENT_ZERO_ENTER_Z     (0x00000001<<18)
+#define MOTO_EVENT_ZERO_EXIT_Z      (0x00000002<<18)
+#define MOTO_EVENT_NEAR_ENTER_Z     (0x00000004<<18)
+#define MOTO_EVENT_NEAR_EXIT_Z      (0x00000008<<18)
+#define MOTO_EVENT_FAR_ENTER_Z      (0x00000010<<18)
+#define MOTO_EVENT_FAR_EXIT_Z       (0x00000020<<18)
+#define MOTO_EVENT_OVERNEAR_Z       (0x00000040<<18)
+#define MOTO_EVENT_OVERFAR_Z        (0x00000080<<18)
+#define MOTO_EVENT_STEPOVER_Z       (0x00000100<<18)
 
 #define ADC_CHANNEL_NTC1          LL_ADC_CHANNEL_0
 #define ADC_CHANNEL_NTC2          LL_ADC_CHANNEL_1

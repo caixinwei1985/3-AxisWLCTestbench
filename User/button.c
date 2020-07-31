@@ -23,8 +23,12 @@ void Button_Init(Button_t* btn, GPIO_TypeDef* port,uint32_t pin, uint16_t notify
   btn->OnClosed = CBclosed;
   btn->OnOpened = CBopened;
 }
-
-void Button_Fresh(Button_t* btn)
+/**
+  * @brife  Update button status
+  * @note   Attention must be paid to the frequency of refresh, this function is called by 1000Hz in default.
+  * @param  A pointer to button typedef structure
+  */
+void Button_Refresh(Button_t* btn)
 {
   uint32_t bit = Get_GPIOPinBit(btn->Port,btn->Pin);
   if(bit == btn->ClosedState)

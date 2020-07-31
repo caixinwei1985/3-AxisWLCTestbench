@@ -51,10 +51,10 @@ void MX_GPIO_Init(void)
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOD);
 
   /**/
-  LL_GPIO_SetOutputPin(SW_24V_GPIO_Port, SW_24V_Pin);
+  LL_GPIO_ResetOutputPin(SW_24V_GPIO_Port, SW_24V_Pin);
 
   /**/
-  LL_GPIO_SetOutputPin(SW_5V_GPIO_Port, SW_5V_Pin);
+  LL_GPIO_ResetOutputPin(SW_5V_GPIO_Port, SW_5V_Pin);
 
   /**/
   LL_GPIO_SetOutputPin(SW_LAMP_GPIO_Port, SW_LAMP_Pin);
@@ -69,10 +69,16 @@ void MX_GPIO_Init(void)
   LL_GPIO_SetOutputPin(SW_LASER_GPIO_Port, SW_LASER_Pin);
 
   /**/
-  LL_GPIO_SetOutputPin(FAN1_GPIO_Port, FAN1_Pin);
+  LL_GPIO_ResetOutputPin(FAN1_GPIO_Port, FAN1_Pin);
 
   /**/
-  LL_GPIO_SetOutputPin(FAN2_GPIO_Port, FAN2_Pin);
+  LL_GPIO_ResetOutputPin(FAN2_GPIO_Port, FAN2_Pin);
+  
+  /**/
+  LL_GPIO_ResetOutputPin(HPOUT1_GPIO_Port,HPOUT1_Pin);
+  
+  /**/
+  LL_GPIO_ResetOutputPin(HPOUT2_GPIO_Port,HPOUT2_Pin);
 
   /**/
   LL_GPIO_SetOutputPin(MOTOZDIR_GPIO_Port, MOTOZDIR_Pin);

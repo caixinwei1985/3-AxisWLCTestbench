@@ -27,6 +27,7 @@
 #include "moto.h"
 #include "cmdlink.h"
 #include "comm_definition.h"
+#include "usart.h";
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -149,8 +150,9 @@ void EXTI2_3_IRQHandler(void)
         MOTO_OnNearPointEnter(AxisY);
         if(MOTO_GetDirection(AxisY)!= MOTO_STATUS_POSITIVE)
         {
-          rt_event_send(&evt_moto_pos,MOTO_EVENT_NEAR_ENTER);
-          report_notify(NTF_MOTO_NEAR);
+          log("Move neg\n");
+          rt_event_send(&evt_moto_pos,MOTO_EVENT_NEAR_ENTER_Y);
+          report_notify(NTF_MOTO_NEAR_Y);
         }
       }
       else
@@ -158,11 +160,11 @@ void EXTI2_3_IRQHandler(void)
         log("y near exit\n");
         if(MOTO_OnNearPointExit(AxisY))
         {
-            rt_event_send(&evt_moto_pos,MOTO_EVENT_OVERNEAR);
+          rt_event_send(&evt_moto_pos,MOTO_EVENT_OVERNEAR_Y);
         }
         else
         {
-          rt_event_send(&evt_moto_pos,MOTO_EVENT_NEAR_EXIT);
+          rt_event_send(&evt_moto_pos,MOTO_EVENT_NEAR_EXIT_Y);
         }
       }
     }
@@ -179,13 +181,13 @@ void EXTI2_3_IRQHandler(void)
     {
       log("y zero enter\n");
       MOTO_OnZeroPointEnter(AxisY);
-      rt_event_send(&evt_moto_pos,MOTO_EVENT_ZERO_ENTER);
-      report_notify(NTF_MOTO_RESET);
+      rt_event_send(&evt_moto_pos,MOTO_EVENT_ZERO_ENTER_Y);
     }
     else
     {
-      MOTO_OnZeroPointExit(AxisY);
       log("y zero exit\n");
+      MOTO_OnZeroPointExit(AxisY);
+      rt_event_send(&evt_moto_pos,MOTO_EVENT_ZERO_EXIT_Y);
     }
     /* USER CODE END LL_EXTI_LINE_3 */
   }
@@ -215,17 +217,17 @@ void EXTI4_15_IRQHandler(void)
       MOTO_OnFarPointEnter(AxisX);
       if(MOTO_GetDirection(AxisX) == MOTO_STATUS_POSITIVE)
       {
-        rt_event_send(&evt_moto_pos,MOTO_EVENT_FAR_ENTER);
-        report_notify(NTF_MOTO_FAR);
+        rt_event_send(&evt_moto_pos,MOTO_EVENT_FAR_ENTER_X);
+        report_notify(NTF_MOTO_FAR_X);
       }
     }
     else
     {
       log("x far exit\n");
       if(MOTO_OnFarPointExit(AxisX))
-        rt_event_send(&evt_moto_pos,MOTO_EVENT_OVERFAR);
+        rt_event_send(&evt_moto_pos,MOTO_EVENT_OVERFAR_X);
       else
-        rt_event_send(&evt_moto_pos,MOTO_EVENT_FAR_EXIT);
+        rt_event_send(&evt_moto_pos,MOTO_EVENT_FAR_EXIT_X);
     }
     /* USER CODE END LL_EXTI_LINE_4 */
   }
@@ -242,8 +244,8 @@ void EXTI4_15_IRQHandler(void)
       MOTO_OnNearPointEnter(AxisX);
       if(MOTO_GetDirection(AxisX)!= MOTO_STATUS_POSITIVE)
       {
-        rt_event_send(&evt_moto_pos,MOTO_EVENT_NEAR_ENTER);
-        report_notify(NTF_MOTO_NEAR);
+        rt_event_send(&evt_moto_pos,MOTO_EVENT_NEAR_ENTER_X);
+        report_notify(NTF_MOTO_NEAR_X);
       }
     }
     else
@@ -251,11 +253,11 @@ void EXTI4_15_IRQHandler(void)
       log("x near exit\n");
       if(MOTO_OnNearPointExit(AxisX))
       {
-          rt_event_send(&evt_moto_pos,MOTO_EVENT_OVERNEAR);
+          rt_event_send(&evt_moto_pos,MOTO_EVENT_OVERNEAR_X);
       }
       else
       {
-        rt_event_send(&evt_moto_pos,MOTO_EVENT_NEAR_EXIT);
+        rt_event_send(&evt_moto_pos,MOTO_EVENT_NEAR_EXIT_X);
       }
     }
     /* USER CODE END LL_EXTI_LINE_5 */
@@ -270,13 +272,14 @@ void EXTI4_15_IRQHandler(void)
     {
       log("x zero enter\n");
       MOTO_OnZeroPointEnter(AxisX);
-      rt_event_send(&evt_moto_pos,MOTO_EVENT_ZERO_ENTER);
-      report_notify(NTF_MOTO_RESET);
+      rt_event_send(&evt_moto_pos,MOTO_EVENT_ZERO_ENTER_X); 
     }
     else
     {
-      MOTO_OnZeroPointExit(AxisX);
       log("x zero exit\n");
+      MOTO_OnZeroPointExit(AxisX);
+      rt_event_send(&evt_moto_pos,MOTO_EVENT_ZERO_EXIT_X); 
+
     }
     /* USER CODE END LL_EXTI_LINE_6 */
   }
@@ -292,6 +295,30 @@ void EXTI4_15_IRQHandler(void)
     LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_10);
     /* USER CODE BEGIN LL_EXTI_LINE_10 */
     //ZSW1
+    if(MOTO_GetRunningAxis()!=AxisZ)
+      return;
+    if((LL_GPIO_ReadInputPort(ZSW1_GPIO_Port)&ZSW1_Pin) == 0)// enter
+    {
+      log("Z near enter\n");
+      MOTO_OnNearPointEnter(AxisZ);
+      if(MOTO_GetDirection(AxisZ)!= MOTO_STATUS_POSITIVE)
+      {
+        rt_event_send(&evt_moto_pos,MOTO_EVENT_NEAR_ENTER_Z);
+        report_notify(NTF_MOTO_NEAR_Z);
+      }
+    }
+    else
+    {
+      log("Z near exit\n");
+      if(MOTO_OnNearPointExit(AxisZ))
+      {
+        rt_event_send(&evt_moto_pos,MOTO_EVENT_OVERNEAR_Z);
+      }
+      else
+      {
+        rt_event_send(&evt_moto_pos,MOTO_EVENT_NEAR_EXIT_Z);
+      }
+    }
     /* USER CODE END LL_EXTI_LINE_10 */
   }
   if (LL_EXTI_IsActiveFlag_0_31(LL_EXTI_LINE_11) != RESET)
@@ -299,9 +326,24 @@ void EXTI4_15_IRQHandler(void)
     LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_11);
     /* USER CODE BEGIN LL_EXTI_LINE_11 */
     //ZSW0
+    if(MOTO_GetRunningAxis()!= AxisZ)
+      return;
+    if((LL_GPIO_ReadInputPort(ZSW0_GPIO_Port)&ZSW0_Pin) == 0)
+    {
+      log("z zero enter\n");
+      MOTO_OnZeroPointEnter(AxisZ);
+      rt_event_send(&evt_moto_pos,MOTO_EVENT_ZERO_ENTER_Z);
+   
+    }
+    else
+    {
+      log("z zero exit\n");
+      MOTO_OnZeroPointExit(AxisZ);
+      rt_event_send(&evt_moto_pos,MOTO_EVENT_ZERO_EXIT_Z);
+    }
     /* USER CODE END LL_EXTI_LINE_11 */
   }
-  if (LL_EXTI_IsActiveFlag_0_31(LL_EXTI_LINE_12) != RESET)
+  if(LL_EXTI_IsActiveFlag_0_31(LL_EXTI_LINE_12) != RESET)
   {
     LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_12);
     /* USER CODE BEGIN LL_EXTI_LINE_12 */
@@ -315,17 +357,17 @@ void EXTI4_15_IRQHandler(void)
       MOTO_OnFarPointEnter(AxisY);
       if(MOTO_GetDirection(AxisY) == MOTO_STATUS_POSITIVE)
       {
-        rt_event_send(&evt_moto_pos,MOTO_EVENT_FAR_ENTER);
-        report_notify(NTF_MOTO_FAR);
+        rt_event_send(&evt_moto_pos,MOTO_EVENT_FAR_ENTER_Y);
+        report_notify(NTF_MOTO_FAR_Y);
       }
     }
     else
     {
       log("y far exit\n");
       if(MOTO_OnFarPointExit(AxisY))
-        rt_event_send(&evt_moto_pos,MOTO_EVENT_OVERFAR);
+        rt_event_send(&evt_moto_pos,MOTO_EVENT_OVERFAR_Y);
       else
-        rt_event_send(&evt_moto_pos,MOTO_EVENT_FAR_EXIT);
+        rt_event_send(&evt_moto_pos,MOTO_EVENT_FAR_EXIT_Y);
     }
     /* USER CODE END LL_EXTI_LINE_12 */
   }
@@ -348,6 +390,26 @@ void EXTI4_15_IRQHandler(void)
     LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_15);
     /* USER CODE BEGIN LL_EXTI_LINE_15 */
     //ZSW2
+    if(MOTO_GetRunningAxis()!= AxisZ)
+      return;
+    if((LL_GPIO_ReadInputPort(ZSW2_GPIO_Port)&ZSW2_Pin)==0) // enter
+    {
+      log("Z far enter\n");
+      MOTO_OnFarPointEnter(AxisZ);
+      if(MOTO_GetDirection(AxisZ) == MOTO_STATUS_POSITIVE)
+      {
+        rt_event_send(&evt_moto_pos,MOTO_EVENT_FAR_ENTER_Z);
+        report_notify(NTF_MOTO_FAR_Z);
+      }
+    }
+    else
+    {
+      log("Z far exit\n");
+      if(MOTO_OnFarPointExit(AxisZ))
+        rt_event_send(&evt_moto_pos,MOTO_EVENT_OVERFAR_Z);
+      else
+        rt_event_send(&evt_moto_pos,MOTO_EVENT_FAR_EXIT_Z);
+    }
     /* USER CODE END LL_EXTI_LINE_15 */
   }
   /* USER CODE BEGIN EXTI4_15_IRQn 1 */
@@ -370,11 +432,11 @@ void TIM1_BRK_UP_TRG_COM_IRQHandler(void)
     if(speed == 0)
     {
       MOTO_Stop(axis);
-      rt_event_send(&evt_moto_pos,MOTO_EVENT_STEPOVER);
+      rt_event_send(&evt_moto_pos,MOTO_EVENT_STEPOVER<<axis*9);
     }
     else
     {
-      uint32_t arr = 48000000/speed;
+      uint32_t arr = 12000000/speed;
       if(arr>0xffff)
         arr = 0xffff;
       TIM1->ARR = arr;
@@ -411,6 +473,7 @@ void TIM6_DAC_IRQHandler(void)
     TIM6->SR &= ~TIM_SR_UIF;
     HAL_IncTick();
     Buttons_FreshState();
+    MOTO_Sync();
   }
   /* USER CODE END TIM6_DAC_IRQn 0 */
   
@@ -428,7 +491,6 @@ void USART2_IRQHandler(void)
   if(LL_USART_IsActiveFlag_TC(USART2))
   {
     LL_USART_ClearFlag_TC(USART2);
-    
   }
   if(LL_USART_IsActiveFlag_TXE(USART2))
   {
@@ -437,6 +499,15 @@ void USART2_IRQHandler(void)
   if(LL_USART_IsActiveFlag_RXNE(USART2))
   {
     hal_receive_byte_IT(1);
+  }
+  if(LL_USART_IsActiveFlag_FE(USART2))
+  {
+    LL_USART_ClearFlag_FE(USART2);
+    Uart_Set_Error();
+  }
+  if(LL_USART_IsActiveFlag_ORE(USART2))
+  {
+    LL_USART_ClearFlag_ORE(USART2);
   }
   /* USER CODE END USART2_IRQn 0 */
   /* USER CODE BEGIN USART2_IRQn 1 */

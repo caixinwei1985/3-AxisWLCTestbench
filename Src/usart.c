@@ -21,7 +21,10 @@
 #include "usart.h"
 
 /* USER CODE BEGIN 0 */
-
+static uint8_t   UartError;
+void Uart_Set_Error(){ UartError = 1;}
+void Uart_Reset_Error(){ UartError = 0;}
+uint8_t Uart_Get_Error(){return UartError;}
 /* USER CODE END 0 */
 
 /* USART2 init function */
@@ -71,6 +74,7 @@ void MX_USART2_UART_Init(void)
   LL_USART_ConfigAsyncMode(USART2);
   LL_USART_EnableIT_RXNE(USART2);
 //  LL_USART_EnableIT_TC(USART2);
+  LL_USART_EnableIT_ERROR(USART2);
   LL_USART_Enable(USART2);
 
 }

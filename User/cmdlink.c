@@ -46,7 +46,7 @@ static uint8_t mpool_print[2048];
 // 用于hex命令输出的内存池
 static struct rt_mempool mp_hexcmd;
 ALIGN(8)
-static uint8_t mpool_hexcmd[256];
+static uint8_t mpool_hexcmd[512];
 // 接收任务发送命令队列的内存池
 static struct rt_mempool mp_recv;
 static uint8_t mpool_revc[256];
@@ -66,16 +66,15 @@ void print_task(void* pdata)
 {
   print_msg_t msg;
   uint32_t i;
+  uint8_t padds[8] ={0};
   for(;;)
   {
     rt_mq_recv(&print_mq,&msg,sizeof(print_msg_t),RT_WAITING_FOREVER);
     msg_chk = 0;
-    
     if(msg.type == 0)
     {
       msg_header[0] = 0xcc;
       msg_header[1] = 0x33;
-
     }
     if(msg.type == 1)
     {
@@ -89,37 +88,45 @@ void print_task(void* pdata)
       msg_chk ^= msg_header[i];
     for(i=0;i<msg.length;i++)
       msg_chk ^= msg.pmsg[i];
-    
+    async_write(1,padds,4);
     async_write(1,msg_header,4);
     async_write(1,msg.pmsg,msg.length);
     async_write(1,&msg_chk,1);
     rt_mp_free(msg.pmsg);
   }
 }
-__weak void frame_proc_callback(uint8_t* frame)
+__weak void frame_proc_callback(uint8_t* frame,uint16_t count)
 {
   
   if( 0x03 == *frame )
   {
     // 从内存池中申请存储帧信息的缓冲区
     uint8_t* p = rt_mp_alloc(&mp_recv,20);
-    rt_memcpy(p,frame,mp_recv.block_size);
+    rt_memcpy(p,frame,count);
     if(RT_EOK != rt_mb_send_wait(&mb_moto,(rt_uint32_t)p,100))
     {
       rt_kputs("moto mb fail\n");
+      rt_mp_free(p);
     }
   }
   else if(0x01 == *frame  || 0x02 == *frame )
   {
     rt_uint8_t *p = rt_mp_alloc(&mp_recv,20);
-    rt_memcpy(p,frame,mp_recv.block_size);
+    rt_memcpy(p,frame,count);
     if(RT_EOK != rt_mb_send_wait(&mb_IO_rw,(rt_uint32_t)p,100))
     {
+      rt_kputs("io mb fail\n");
+      rt_mp_free(p);
     }
   }
-  else if(0xff == *frame)
+  else if(0xff == *frame )
   {
-    BootConfig_System(); 
+    if( 0x00 == *(frame+1))
+      BootConfig_System(); 
+    if(0x00 == *(frame+1))
+    {
+      
+    }
   }
   
 }
@@ -128,11 +135,12 @@ void recv_task(void* pdata)
   uint8_t b;
   uint16_t len;
   uint8_t chk;
-  uint8_t buf[24];
+  uint8_t buf[32];
   for(;;)
   {
     if(0==async_read(1,&b,1))
       continue;
+    LL_GPIO_TogglePin(SW_LAMP_GPIO_Port,SW_LAMP_Pin);
     if(0x5A == b)
     {
       chk = 0;
@@ -154,7 +162,7 @@ void recv_task(void* pdata)
             if(chk == buf[len-3])
             {
               // 传入操作帧首地址，不包含传输帧的前导和长度字节
-              frame_proc_callback(buf+2);
+              frame_proc_callback(buf+2,len-5);
             }
           }
         }
@@ -178,15 +186,15 @@ void init_cmdlink(void)
     rt_sem_init(&tx_sem[ch],"0",0,RT_IPC_FLAG_PRIO);
     f_outbuf_requiredspace[ch] = 0xffff;
     rt_sem_init(&rx_sem[ch],"",0,RT_IPC_FLAG_PRIO);
-    f_inbuf_requiredbytes[ch] = 0;
+    f_inbuf_requiredbytes[ch] = 0xffff;
   }
   rt_mq_init(&print_mq,"mq",(void*)print_mq_buf,sizeof(print_msg_t),sizeof(print_mq_buf),RT_IPC_FLAG_FIFO);
   //启动打印任务
   rt_thread_init(&thread_print,"print",print_task,RT_NULL,thread_print_stack,sizeof(thread_print_stack),15,20);
-  rt_thread_init(&thread_recv,"recv",recv_task,RT_NULL,thread_recv_stack,sizeof(thread_recv_stack),15,20);
+  rt_thread_init(&thread_recv,"recv",recv_task,RT_NULL,thread_recv_stack,sizeof(thread_recv_stack),14,20);
   rt_mp_init(&mp_print,"mpp",mpool_print,sizeof(mpool_print),64);
   rt_mp_init(&mp_recv,"mpr",mpool_revc,sizeof(mpool_revc),16);
-  rt_mp_init(&mp_hexcmd,"hex",mpool_hexcmd,sizeof(mpool_hexcmd),16);
+  rt_mp_init(&mp_hexcmd,"hex",mpool_hexcmd,sizeof(mpool_hexcmd),32);
   
 }
 
@@ -213,7 +221,7 @@ uint8_t sync_read(uint8_t ch,uint8_t* pbuff,uint8_t count,uint16_t timeout)
       {
           return 0;
       }
-      
+
       pbuff[i] = f_inbuf[ch][f_inbuf_rd_idx[ch]];
       f_inbuf[ch][f_inbuf_rd_idx[ch]] = 0xcc;
       f_inbuf_rd_idx[ch]++;
@@ -227,13 +235,36 @@ uint8_t sync_read(uint8_t ch,uint8_t* pbuff,uint8_t count,uint16_t timeout)
     }
     return i;
 }
+
+/*********************************************************
+*        name:async_read
+* description:
+*  parameters:
+*return value:
+**********************************************************/
 uint8_t async_read(uint8_t ch,uint8_t* pbuff,uint8_t count)
 {
   uint8_t i;
+  LL_USART_DisableIT_RXNE(s_usarts[ch]);
+  if(0 == f_inbuf_cnt[ch])
+  {
+    if(f_inbuf_rd_idx[ch] != f_inbuf_wr_idx[ch])
+    {
+      f_inbuf_rd_idx[ch] = 0;
+      f_inbuf_wr_idx[ch] = 0;
+    }
+  }
+  LL_USART_EnableIT_RXNE(s_usarts[ch]);
   if(count > f_inbuf_cnt[ch])
   {
     f_inbuf_requiredbytes[ch] = count;
-    if(RT_EOK != rt_sem_take(&rx_sem[ch],RT_WAITING_FOREVER))
+    if(RT_EOK != rt_sem_take(&rx_sem[ch],RT_WAITING_FOREVER))   
+    { 
+      f_inbuf_requiredbytes[ch] = 0xffff;
+      return 0;
+    }
+    // 若某些异常状况导致的信号量等待结束，再次确认所剩字节数是否满足读取需求
+    if(count > f_inbuf_cnt[ch])
       return 0;
   }
   for(i = 0;i < count;i++)
@@ -252,8 +283,6 @@ uint8_t async_read(uint8_t ch,uint8_t* pbuff,uint8_t count)
   return i;
 }
 
-
-
 /*********************************************************
 *        name:async_write
 * description:
@@ -263,12 +292,24 @@ uint8_t async_read(uint8_t ch,uint8_t* pbuff,uint8_t count)
 uint8_t async_write(uint8_t ch,uint8_t* pbuff,uint8_t count)
 {
   uint8_t i;
-
-  if(count > OUTBUFLENMAX - f_outbuf_cnt[ch])
+  LL_USART_DisableIT_TXE(s_usarts[ch]);
+  if(0 == f_outbuf_cnt[ch])
+  {
+    if(f_outbuf_rd_idx[ch] != f_outbuf_wr_idx[ch])
+    {
+      f_outbuf_rd_idx[ch] = 0;
+      f_outbuf_wr_idx[ch] = 0;
+    }
+  }
+  LL_USART_EnableIT_TXE(s_usarts[ch]);
+  // 对于写操作，总能在有限时长内获得足够的写入空间
+  while(count > OUTBUFLENMAX - f_outbuf_cnt[ch])
   {
     f_outbuf_requiredspace[ch] = count;
-    if(RT_EOK != rt_sem_take(&tx_sem[ch],1000))
-      return 0;
+    if(RT_EOK != rt_sem_take(&tx_sem[ch],100))
+    {
+      f_outbuf_requiredspace[ch] = 0xffff;
+    }
   }
   
   for(i = 0;i < count;i++)
@@ -280,9 +321,9 @@ uint8_t async_write(uint8_t ch,uint8_t* pbuff,uint8_t count)
     {
       f_outbuf_wr_idx[ch] = 0;
     }
-    __disable_irq();
+    LL_USART_DisableIT_TXE(s_usarts[ch]);
     f_outbuf_cnt[ch]++;
-    __enable_irq();
+    LL_USART_EnableIT_TXE(s_usarts[ch]);
   }
 //  if(f_is_tranfering[ch] == 0)
 //  {
@@ -292,7 +333,7 @@ uint8_t async_write(uint8_t ch,uint8_t* pbuff,uint8_t count)
 //    f_outbuf_cnt[ch]--;
 //    f_is_tranfering[ch] = 1;
 //  }
-  LL_USART_EnableIT_TXE(s_usarts[ch]);
+//  LL_USART_EnableIT_TXE(s_usarts[ch]);
   return i;  
 }
 
@@ -304,7 +345,9 @@ void hal_transfer_byte_IT(uint8_t ch)
     if(f_outbuf_rd_idx[ch] == sizeof(f_outbuf[ch]))
       f_outbuf_rd_idx[ch] = 0;
     f_outbuf_cnt[ch]--;
-    if(sizeof(f_outbuf[ch])-f_outbuf_cnt[ch] == f_outbuf_requiredspace[ch])
+    
+    /** @Note:必须使用大于等于条件，否则极小概率会出现数据不同步，条件永远无法满足，导致发送线程锁死 */
+    if(sizeof(f_outbuf[ch])-f_outbuf_cnt[ch] >= f_outbuf_requiredspace[ch])
     {
       f_outbuf_requiredspace[ch]= 0xffff;
       rt_sem_release(&tx_sem[ch]);
@@ -330,10 +373,11 @@ void hal_receive_byte_IT(uint8_t ch)
   if(f_inbuf_cnt[ch] > INBUFLENMAX)
     f_inbuf_cnt[ch] = INBUFLENMAX;
   
-  if(f_inbuf_cnt[ch] == f_inbuf_requiredbytes[ch])
+  /*** @Note: 此处切记不可使用 判等 条件比较，必须是用大于等于，防止数据出错后永远无法满足条件，导致线程锁死*/
+  if(f_inbuf_cnt[ch] >= f_inbuf_requiredbytes[ch] )
   {
     rt_sem_release(&rx_sem[ch]);
-    f_inbuf_requiredbytes[ch] = 0;
+    f_inbuf_requiredbytes[ch] = 0xffff;
   }
 }
 
@@ -383,7 +427,10 @@ void rt_hw_console_output(const char *str)
     msg.type = 0;
     msg.pmsg = p;
     msg.length = len;
-    rt_mq_send(&print_mq,&msg,sizeof(msg));
+    if(RT_EOK != rt_mq_send(&print_mq,&msg,sizeof(msg)))
+    {
+      rt_mp_free(p);
+    }
   }
 }
 
@@ -401,7 +448,10 @@ void send_hex_message(const uint8_t* buf,uint16_t len)
     msg.type = 1;
     msg.pmsg = p;
     msg.length = len;
-    rt_mq_send(&print_mq,&msg,sizeof(msg));
+    if(RT_EOK != rt_mq_send(&print_mq,&msg,sizeof(msg)))
+    {
+      rt_mp_free(p);
+    }
   }
 }
 

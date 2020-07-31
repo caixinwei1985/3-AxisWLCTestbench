@@ -33,5 +33,5 @@ typedef  struct _btn
 void Button_Init(Button_t* btn, GPIO_TypeDef* port,uint32_t pin, uint16_t notify,uint16_t closedstate,
   BtnCallBack CBclosed,BtnCallBack CBopened);
 
-void Button_Fresh(Button_t *btn);
+void Button_Refresh(Button_t *btn);
 #endif

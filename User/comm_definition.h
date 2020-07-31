@@ -48,16 +48,17 @@
 #define REG_PROT2_R     0x021a
 #define REG_VBAT_R      0x021b
 
-#define CMD_MOTO_MOVE   0x0300  /* DATA 10 Bytes: byte0 axis,byte1 acc, byte2:byte3 speed,byte4:byte7 step,byte8:byte9 timeout */
-#define CMD_MOTO_RST    0x0301  /* DATA  3 Byte:  byte0 axis,byte1:byte2 timeout  */
+#define CMD_MOTO_MOVE   0x0300  /* DATA 9 Bytes:  byte0 axis,byte1:byte2 speed,byte3:byte6 steps,byte7:byte8 timeout */
+#define CMD_MOTO_RST    0x0301  /* DATA 5 Bytes:  byte0 axis,byte1:byte2 spedd,byte3:byte4 timeout  */
+#define CMD_MOTO_CFG    0x0302  /* DATA 4 Bytes:  byte0 acc,byte1:dec,byte2:byte3:startspeed*/
 
 #define NTF_MOTO_COMP   0x0400
 #define NTF_MOTO_OT     0x0401
 #define NTF_PROT_TRIG   0x0402
 #define NTF_MOTO_RESET  0x0403
-#define NTF_MOTO_FAR    0x0404
-#define NTF_MOTO_NEAR   0x0405
-#define NTF_START_PRESS 0x0406
+#define NTF_MOTO_FAR    0x0404  /* 电机正向进入或离开远点开关*/
+#define NTF_MOTO_NEAR   0x0405  /* 电机逆向进入或离开远点开关*/
+#define NTF_START_PRESS 0x0406  
 #define NTF_JS1BT_PRESS 0x0407
 #define NTF_JS1D0_PRESS 0x0408
 #define NTF_JS1D1_PRESS 0x0409
@@ -68,7 +69,30 @@
 #define NTF_JS2D1_PRESS 0x040e
 #define NTF_JS2D2_PRESS 0x040f
 #define NTF_JS2D3_PRESS 0x0410
-#define NTF_RXCOL_TRIG  0x0411
-#define NTF_MOTO_EMER   0x0411
+#define NTF_RXCOL_TRIG  0x0411  
+#define NTF_MOTO_EMER   0x0412  
+
+#define NTF_MOTO_COMP_X   0x0413
+#define NTF_MOTO_OT_X     0x0414
+#define NTF_MOTO_RESET_X  0x0415
+#define NTF_MOTO_FAR_X    0x0416
+#define NTF_MOTO_NEAR_X   0x0417
+#define NTF_MOTO_EMER_X   0x0418
+
+#define NTF_MOTO_COMP_Y   0x0419
+#define NTF_MOTO_OT_Y     0x041A
+#define NTF_MOTO_RESET_Y  0x041B
+#define NTF_MOTO_FAR_Y    0x041C
+#define NTF_MOTO_NEAR_Y   0x041D
+#define NTF_MOTO_EMER_Y   0x041E
+
+#define NTF_MOTO_COMP_Z   0x041F
+#define NTF_MOTO_OT_Z     0x0420
+#define NTF_MOTO_RESET_Z  0x0421
+#define NTF_MOTO_FAR_Z    0x0422
+#define NTF_MOTO_NEAR_Z   0x0423
+#define NTF_MOTO_EMER_Z   0x0424
+
+#define NTF_DEVICE_RESET  0x0425
 void report_notify(unsigned short notify);
 #endif

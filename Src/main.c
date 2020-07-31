@@ -24,6 +24,7 @@
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
+#include "iwdg.h"
 #include "app_rtthread.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -70,11 +71,13 @@ void Peripheral_Init(void)
   BootConfig_User();
   HAL_Init();
   SystemClock_Config();
+  
   MX_GPIO_Init();
   MX_ADC_Init();
   MX_TIM1_Init();
   MX_TIM6_Init();
   MX_USART2_UART_Init();
+//  MX_IWDG_Init();
 
 }
 /* USER CODE END 0 */
@@ -214,7 +217,7 @@ void Buttons_FreshState()
   uint32_t i = 0;
   while(i < 12)
   {
-    Button_Fresh(&Buttons[i]);
+    Button_Refresh(&Buttons[i]);
     i++; 
   }
 }

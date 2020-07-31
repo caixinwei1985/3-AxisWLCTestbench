@@ -1,8 +1,8 @@
 /**
   ******************************************************************************
-  * File Name          : USART.h
+  * File Name          : IWDG.c
   * Description        : This file provides code for the configuration
-  *                      of the USART instances.
+  *                      of the IWDG instances.
   ******************************************************************************
   * @attention
   *
@@ -16,43 +16,33 @@
   *
   ******************************************************************************
   */
-/* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __usart_H
-#define __usart_H
-#ifdef __cplusplus
- extern "C" {
-#endif
 
 /* Includes ------------------------------------------------------------------*/
-#include "main.h"
+#include "iwdg.h"
 
-/* USER CODE BEGIN Includes */
+/* USER CODE BEGIN 0 */
 
-/* USER CODE END Includes */
+/* USER CODE END 0 */
 
-/* USER CODE BEGIN Private defines */
+IWDG_HandleTypeDef hiwdg;
 
-/* USER CODE END Private defines */
+/* IWDG init function */
+void MX_IWDG_Init(void)
+{
 
-void MX_USART2_UART_Init(void);
+  hiwdg.Instance = IWDG;
+  hiwdg.Init.Prescaler = IWDG_PRESCALER_64;
+  hiwdg.Init.Window = 625;
+  hiwdg.Init.Reload = 625;
+  if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
+  {
+    Error_Handler();
+  }
 
-/* USER CODE BEGIN Prototypes */
-uint8_t Uart_Get_Error(void);
-void Uart_Set_Error(void);
-void Uart_Reset_Error(void);
-/* USER CODE END Prototypes */
-
-#ifdef __cplusplus
 }
-#endif
-#endif /*__ usart_H */
 
-/**
-  * @}
-  */
+/* USER CODE BEGIN 1 */
 
-/**
-  * @}
-  */
+/* USER CODE END 1 */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

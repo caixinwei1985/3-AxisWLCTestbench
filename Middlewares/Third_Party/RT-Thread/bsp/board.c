@@ -92,5 +92,4 @@ void SysTick_Handler(void)
 
     /* leave interrupt */
     rt_interrupt_leave();
-    HAL_IncTick();
 }

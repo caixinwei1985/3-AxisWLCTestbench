@@ -12,7 +12,7 @@ typedef struct print_message
 #define PRINT_MQ_LEN    16
 //#include "stm32f0xx_hal.h"
 #define INBUFLENMAX (256l)
-#define OUTBUFLENMAX (256l)
+#define OUTBUFLENMAX (512l)
 #define UART_CH_MAX     2
 
 void hal_transfer_byte_IT(uint8_t ch);

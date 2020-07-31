@@ -39,7 +39,7 @@ void MX_TIM1_Init(void)
   NVIC_SetPriority(TIM1_BRK_UP_TRG_COM_IRQn, 0);
   NVIC_EnableIRQ(TIM1_BRK_UP_TRG_COM_IRQn);
 
-  TIM_InitStruct.Prescaler = 0;
+  TIM_InitStruct.Prescaler = 3;
   TIM_InitStruct.CounterMode = LL_TIM_COUNTERMODE_UP;
   TIM_InitStruct.Autoreload = 0;
   TIM_InitStruct.ClockDivision = LL_TIM_CLOCKDIVISION_DIV1;
@@ -129,8 +129,6 @@ void MX_TIM6_Init(void)
   LL_TIM_DisableARRPreload(TIM6);
   LL_TIM_SetTriggerOutput(TIM6, LL_TIM_TRGO_RESET);
   LL_TIM_DisableMasterSlaveMode(TIM6);
-//  LL_TIM_EnableIT_UPDATE(TIM6);
-//  LL_TIM_EnableCounter(TIM6);
 
 }
 

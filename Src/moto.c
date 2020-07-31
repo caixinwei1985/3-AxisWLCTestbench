@@ -2,13 +2,24 @@
 #include "main.h"
 
 #define ALIGNMENT_STEPS (32)
-#define TIM_CLOCK (48000000L)
-#define  EMERGENTSTOPSPEED (10000)
-#define  EMERGENTSTOPSTEPS  (5000)
+#define TIM_CLOCK (12000000L)
+#define  EMERGENTSTOPSPEED (4000)
+#define  EMERGENTSTOPSTEPS  (1200)
 static MotoCtrl_t ctrlinfo[3];
 static GPIO_TypeDef* dirPort[3];
 static uint32_t dirPin[3] ;
 static uint32_t axisCh[3] ;
+static uint32_t startSpeed;
+static uint16_t emergentStopSteps;
+static uint8_t acceleration;
+static uint8_t deceleration;
+static uint8_t sync_flag;
+
+void MOTO_Sync(void)
+{
+  sync_flag = 1;
+}
+
 
 void MOTO_Init(void)
 {
@@ -29,7 +40,22 @@ void MOTO_Init(void)
   {
     ctrlinfo[i].status_flags = 0;
   }
+  startSpeed = 5000;
+  emergentStopSteps = 1200;
+  acceleration = 8;
+  deceleration = 16;
+  sync_flag = 0;
+  MOTO_Enable();
   
+}
+
+void MOTO_Config(uint8_t acc,uint8_t dec,uint16_t startspeed)
+{
+  acceleration = acc;
+  deceleration = dec;
+  if(startspeed < 200)
+    startspeed = 200;
+  startSpeed = startspeed;
 }
 __weak void MOTO_Positive(Axis_t axis)
 {
@@ -45,17 +71,13 @@ __weak void MOTO_Negitvie(Axis_t axis)
 
 __weak void MOTO_Enable(void)
 {
-  LL_GPIO_ResetOutputPin(MOTOEN_GPIO_Port,MOTOEN_Pin);
+  // 
+  LL_GPIO_SetOutputPin(MOTOEN_GPIO_Port,MOTOEN_Pin);
 }
 
 __weak void MOTO_Disable(void)
 {
-  LL_GPIO_SetOutputPin(MOTOEN_GPIO_Port,MOTOEN_Pin);
-}
-
-__weak void MOTO_Select(Axis_t axis)
-{
-
+  LL_GPIO_ResetOutputPin(MOTOEN_GPIO_Port,MOTOEN_Pin);
 }
 
 __weak void MOTO_Start(Axis_t axis)
@@ -82,19 +104,23 @@ __weak void MOTO_Start(Axis_t axis)
     default:
       break;
   }
+  // 使能PWM信号的外部管脚输出
   TIM1->BDTR |= TIM_BDTR_MOE;
   TIM1->CNT = 0;
   TIM1->CR1 |= TIM_CR1_CEN;
+  TIM1->RCR = ALIGNMENT_STEPS-1;
   TIM1->DIER |= TIM_DIER_UIE;
-  TIM1->RCR = ALIGNMENT_STEPS;
+
 }
 
-void MOTO_Move(Axis_t axis,int32_t steps,uint32_t speed,uint32_t acclerate)
+void MOTO_Move(Axis_t axis,int32_t steps,uint32_t speed)
 {
-  uint32_t lower_speed = 2500;
-  uint32_t total_speed_delta = speed - lower_speed;
+  int32_t total_speed_delta = speed - startSpeed;
+  if(total_speed_delta < 0)
+    total_speed_delta = 0;
   //计算起步加速过程需要的步数
-  uint32_t acclerate_steps = total_speed_delta/acclerate*ALIGNMENT_STEPS;
+  uint32_t acclerate_steps = total_speed_delta/acceleration;
+//  uint32_t acclerate_steps = (speed*speed/2-startSpeed*startSpeed/2-speed*startSpeed)/acceleration/1000;
   if(0 == steps)
   return;
   // 设置运动方向
@@ -125,9 +151,9 @@ void MOTO_Move(Axis_t axis,int32_t steps,uint32_t speed,uint32_t acclerate)
     ctrlinfo[axis].steps[1] = 0;
   }
   ctrlinfo[axis].stage = 0;
-  ctrlinfo[axis].curr_speed = lower_speed;
+  ctrlinfo[axis].curr_speed = startSpeed;
   ctrlinfo[axis].is_steps_aligned = 1;
-  ctrlinfo[axis].acclerate = acclerate;
+  ctrlinfo[axis].acclerate = acceleration;
 
   MOTO_Start(axis);
 }
@@ -138,7 +164,7 @@ __weak void MOTO_Stop(Axis_t axis)
   LL_TIM_DisableCounter(TIM1);
 }
 
-void MOTO_Reset(Axis_t axis)
+void MOTO_Reset(Axis_t axis,uint16_t speed)
 {
   MotoCtrl_t* pmc = &ctrlinfo[axis];
 
@@ -147,12 +173,12 @@ void MOTO_Reset(Axis_t axis)
     case MOTO_POSITION_FAR:
     case MOTO_POSITION_OVERFAR:
     case MOTO_POSITION_ZEROFAR:
-      MOTO_Move(axis,0x80000000,60000,5);
+      MOTO_Move(axis,0x80000000,speed);
       break;
     case MOTO_POSITION_NEAR:
     case MOTO_POSITION_OVERNEAR:
     case MOTO_POSITION_ZERONEAR:
-      MOTO_Move(axis,0x7fffffff,60000,5);
+      MOTO_Move(axis,0x7fffffff,speed);
   }
 }
 
@@ -165,7 +191,7 @@ uint32_t MOTO_ISRHandler(Axis_t axis)
   uint8_t stage = pmc->stage;
   if(pmc->status_flags&MOTO_STATUS_INHISR)
     return pmc->curr_speed;
-  
+#if 1
   if(pmc->is_steps_aligned)
   {
     pmc->steps[stage] -= ALIGNMENT_STEPS;
@@ -179,16 +205,43 @@ uint32_t MOTO_ISRHandler(Axis_t axis)
     }
     //加速阶段
     if(0 == pmc->stage)
+      pmc->curr_speed += pmc->acclerate * ALIGNMENT_STEPS;
+    //减速阶段
+    if(2 == pmc->stage)
+      pmc->curr_speed -= pmc->acclerate * ALIGNMENT_STEPS;
+  }
+  else
+    pmc->steps[stage]--;
+#else 
+  if(pmc->is_steps_aligned)
+  {
+    pmc->steps[stage] -= ALIGNMENT_STEPS;
+    //当剩余的步数不足ALIGNMENT_STEPS时，不再ALIGNMENT_STEPS个脉冲中断一次，
+    //而是1个脉冲中断1次
+    if(pmc->steps[2]<ALIGNMENT_STEPS)
+    {
+      pmc->is_steps_aligned = 0;
+      //
+      LL_TIM_SetRepetitionCounter(TIM1,0);
+    }
+  }
+  if(sync_flag)
+  {
+    sync_flag = 0;
+    //加速阶段
+    if(0 == pmc->stage)
       pmc->curr_speed += pmc->acclerate;
     //减速阶段
     if(2 == pmc->stage)
       pmc->curr_speed -= pmc->acclerate;
   }
-  else
-    pmc->steps[stage]--;
-  
-  if(0 == pmc->steps[stage])
+#endif
+  while(0 == pmc->steps[stage])
+  {
     stage++;
+    if(stage > 2)
+      break;
+  }
   pmc->stage = stage;
   if(stage > 2)
     return 0;
@@ -260,6 +313,7 @@ uint32_t MOTO_OnNearPointExit(Axis_t axis)
     // MOTO_OverNearHook();
   }
   MOTO_BakupPosition(axis,pmc->position);
+  return rs;
 }
 
 /*
@@ -281,13 +335,14 @@ uint32_t MOTO_OnFarPointExit(Axis_t axis)
   uint32_t rs = 0;
   if(pmc->status_flags & MOTO_STATUS_POSITIVE){
     pmc->position = MOTO_POSITION_OVERFAR;   // 如果电机运行为正向，越过了远点
+    rs = 1;
   }
   else{
     pmc->position = MOTO_POSITION_ZEROFAR;   // 电机运行为反向，在零点远点之间
-    rs = 1;
     // MOTO_OverFarHook();
   }
   MOTO_BakupPosition(axis,pmc->position);
+  return rs;
 }
 void MOTO_SetStatus(uint32_t status)
 {
@@ -325,15 +380,16 @@ void MOTO_EmergentBreak(Axis_t axis)
   //禁用步数刷新处理
   pmc->status_flags |= MOTO_STATUS_INHISR; 
   pmc->stage = 2;
-  pmc->steps[2] = EMERGENTSTOPSTEPS;
   pmc->steps[0] = 0;
   pmc->steps[1] = 0;
-  if(pmc->curr_speed < EMERGENTSTOPSPEED)
-    pmc->acclerate = 0;
+  if(pmc->curr_speed < startSpeed)
+  {
+    pmc->steps[2] = 0;
+  }
   else
   {
-    uint32_t speed_delta = pmc->curr_speed - EMERGENTSTOPSPEED;
-    pmc->acclerate = speed_delta * ALIGNMENT_STEPS / EMERGENTSTOPSTEPS ;
+    uint32_t speed_delta = pmc->curr_speed - startSpeed;
+    pmc->steps[2]= speed_delta / deceleration ;
   }
   //启用
   pmc->status_flags &= ~MOTO_STATUS_INHISR;

@@ -103,8 +103,8 @@ void BootConfig_System()
   {
     
   }
-  //	HAL_FLASH_OB_Lock();
-  //	HAL_FLASH_Lock();
+  HAL_FLASH_OB_Lock();
+  HAL_FLASH_Lock();
 
   HAL_FLASH_OB_Launch();
     
