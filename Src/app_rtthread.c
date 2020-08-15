@@ -461,9 +461,9 @@ void User_Idle_Task(void* pdata)
   for(;;)
   {
     HAL_Delay(100);
-    WriteReg(REG_SW24V_W,0);
+//    WriteReg(REG_SW24V_W,0);
     HAL_Delay(100);
-    WriteReg(REG_SW24V_W,1);
+//    WriteReg(REG_SW24V_W,1);
   }
 }
 extern struct rt_thread thread_print;

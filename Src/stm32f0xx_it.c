@@ -144,7 +144,7 @@ void EXTI2_3_IRQHandler(void)
     //YSW1
     if(MOTO_GetRunningAxis() == AxisY)
     {
-      if((LL_GPIO_ReadInputPort(YSW1_GPIO_Port) & YSW1_Pin) == 0)// enter
+      if((LL_GPIO_ReadInputPort(YSW1_GPIO_Port) & YSW1_Pin) != 0)// enter
       {
         log("Y near enter\n");
         MOTO_OnNearPointEnter(AxisY);
@@ -211,7 +211,7 @@ void EXTI4_15_IRQHandler(void)
     //XSW2,
     if(MOTO_GetRunningAxis()!= AxisX)
       return;
-    if((LL_GPIO_ReadInputPort(XSW2_GPIO_Port)&XSW2_Pin)==0) // enter
+    if((LL_GPIO_ReadInputPort(XSW2_GPIO_Port)&XSW2_Pin)!=0) // enter
     {
       log("x far enter\n");
       MOTO_OnFarPointEnter(AxisX);
@@ -238,7 +238,7 @@ void EXTI4_15_IRQHandler(void)
     //XSW1
     if(MOTO_GetRunningAxis()!=AxisX)
       return;
-    if((LL_GPIO_ReadInputPort(XSW1_GPIO_Port)&XSW1_Pin) == 0)// enter
+    if((LL_GPIO_ReadInputPort(XSW1_GPIO_Port)&XSW1_Pin) != 0)// enter
     {
       log("x near enter\n");
       MOTO_OnNearPointEnter(AxisX);
@@ -351,7 +351,7 @@ void EXTI4_15_IRQHandler(void)
     //非对应轴向触发限位，忽略
     if(MOTO_GetRunningAxis()!= AxisY)
       return;
-    if((LL_GPIO_ReadInputPort(YSW2_GPIO_Port)&YSW2_Pin)==0) // enter
+    if((LL_GPIO_ReadInputPort(YSW2_GPIO_Port)&YSW2_Pin)!=0) // enter
     {
       log("y far enter\n");
       MOTO_OnFarPointEnter(AxisY);
