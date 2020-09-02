@@ -3,13 +3,13 @@
 #include <stdint.h>
 #include "main.h"
 
-#define MOTO_POSITION_OVERNEAR  0x00
-#define MOTO_POSITION_NEAR      0x01
-#define MOTO_POSITION_ZERONEAR  0x02
-#define MOTO_POSITION_ZERO      0x03
-#define MOTO_POSITION_ZEROFAR   0x04
-#define MOTO_POSITION_FAR       0x05
-#define MOTO_POSITION_OVERFAR   0x06
+#define MOTO_POSITION_OVERNEAR  0x00      // 
+#define MOTO_POSITION_NEAR      0x01      // 
+#define MOTO_POSITION_ZERONEAR  0x02      // 
+#define MOTO_POSITION_ZERO      0x03      // 
+#define MOTO_POSITION_ZEROFAR   0x04      // 
+#define MOTO_POSITION_FAR       0x05      // 
+#define MOTO_POSITION_OVERFAR   0x06      // 
 
 #define MOTO_STATUS_INHISR      0x20      // 禁止步进刷新中断
 #define MOTO_STATUS_POSITIVE    0x40      // 电机正向运动
@@ -41,7 +41,8 @@ typedef struct{
 void MOTO_Enable(void);
 void MOTO_Disable(void);
 void MOTO_Select(Axis_t axis);
-void MOTO_Move(Axis_t axis,int32_t steps,uint32_t speed);
+void MOTO_Set(Axis_t axis,int32_t steps,int32_t speed);
+void MOTO_Start(uint8_t ch);
 void MOTO_Config(uint8_t acc,uint8_t dec, uint16_t startspeed);
 void MOTO_Stop(Axis_t axis);
 void MOTO_Reset(Axis_t axis, uint16_t speed);

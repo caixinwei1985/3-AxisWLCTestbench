@@ -75,6 +75,7 @@ void Peripheral_Init(void)
   MX_GPIO_Init();
   MX_ADC_Init();
   MX_TIM1_Init();
+  MX_TIM3_Init();
   MX_TIM6_Init();
   MX_USART2_UART_Init();
 //  MX_IWDG_Init();
@@ -114,13 +115,15 @@ int main(void)
   /* USER CODE BEGIN 2 */
   Buttons_Init_Static();
   HAL_PWR_EnableBkUpAccess();
-  rt_kprintf("BAKUP3:%hu\n",RTC->BKP3R);
- 
+  rt_kprintf("BAKUP0:%hu\n",RTC->BKP0R);
+  rt_kprintf("BAKUP1:%hu\n",RTC->BKP1R);
+  rt_kprintf("BAKUP2:%hu\n",RTC->BKP2R);
   RTC->BKP3R = 0xcc56;
   rt_kprintf("BAKUP3:%hu\n",RTC->BKP3R);
   MX_RT_Thread_Init();
+  
   /* USER CODE END 2 */
-
+  rt_kprintf("BAT volt:%d\n", ADC_Get_VBAT());
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)

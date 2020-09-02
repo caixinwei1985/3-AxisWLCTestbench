@@ -27,6 +27,8 @@
 #include "cmdlink.h"
 #include "usart.h"
 #include "iwdg.h"
+typedef void (*MoveAxisFuncType)(int32_t,uint32_t);
+typedef void (*StopAxisFuncType)(void);
 uint32_t READ_IO(GPIO_TypeDef* port,uint16_t pin)     
 {
   if((LL_GPIO_ReadInputPort(port) & pin) == 0)
@@ -42,7 +44,10 @@ __STATIC_INLINE void WRITE_IO(GPIO_TypeDef* port,uint16_t pin,uint16_t val)
   else{
     LL_GPIO_ResetOutputPin(port,pin);}
 }
-
+static Axis_t motionAxis;
+static uint8_t motionDirection;
+static MoveAxisFuncType MoveAxisFunc[3];
+static StopAxisFuncType StopAxisFunc[3];
 static struct rt_thread thread_moto;
 static struct rt_thread thread_emergent;
 static struct rt_thread thread_io;
@@ -62,11 +67,80 @@ static rt_uint32_t mb_io_pool[4];
 static rt_uint32_t mb_moto_pool[4];
 static rt_uint32_t mb_iotrig_pool[8];
 struct rt_event   evt_moto_pos;
+
+Axis_t  GetMotionAxis()
+{
+  return motionAxis;
+}
+uint8_t GetMotionDirection()
+{
+  return motionDirection;
+}
+
+static void MoveAxisX(int32_t steps,uint32_t speed)
+{
+  rt_kputs("Move Axis X\n");
+  motionAxis = AxisX;
+  motionDirection = steps > 0 ? 1:0;
+  MOTO_Set(0,steps,speed);
+  MOTO_Set(1,steps,speed);
+  MOTO_Start(0);
+  MOTO_Start(1);
+}
+static __inline void StopAxisX()
+{
+  MOTO_Stop(0);
+  MOTO_Stop(1);
+}
+static void MoveAxisY(int32_t steps,uint32_t speed)
+{
+  rt_kputs("Move Axis Y\n");
+  motionAxis = AxisY;
+  motionDirection = steps > 0 ? 1:0;
+  MOTO_Set(0,steps,speed);
+  MOTO_Set(1,0-steps,speed);
+  MOTO_Start(0);
+  MOTO_Start(1);
+  
+}
+static __inline void StopAxisY()
+{
+  MOTO_Stop(0);
+  MOTO_Stop(1);
+}
+static void MoveAxisZ(int32_t steps,uint32_t speed)
+{
+  rt_kputs("Move Axis Z\n");
+  motionAxis = AxisZ;
+  motionDirection = steps>0?1:0;  
+//  if(pos == MOTO_POSITION_FAR || pos == MOTO_POSITION_OVERFAR){
+//    if(motionDirection)
+//      rt_event_send(&evt_moto_pos,MOTO_EVENT_STEPOVER_2);
+//  }
+//  if(pos == MOTO_POSITION_NEAR || pos == MOTO_POSITION_OVERNEAR){
+//    if(!motionDirection)
+//      rt_event_send(&evt_moto_pos,MOTO_EVENT_STEPOVER_2);
+//  }
+  MOTO_Set(2,steps,speed);
+  MOTO_Start(2);
+}
+static __inline void StopAxisZ()
+{
+  MOTO_Stop(2);
+}
 void Moto_Emergent_Break_Task(void* pdata);
 void Moto_Ctrl_Task(void* pdata)
 {
   uint8_t* pframe;
+  uint32_t axis_evt[3];
   rt_kputs("Moto task start\n");
+  motionAxis = AxisUnknown;
+  MoveAxisFunc[AxisX] = MoveAxisX;
+  MoveAxisFunc[AxisY] = MoveAxisY;
+  MoveAxisFunc[AxisZ] = MoveAxisZ;
+  StopAxisFunc[AxisX] = StopAxisX;
+  StopAxisFunc[AxisY] = StopAxisY;
+  StopAxisFunc[AxisZ] = StopAxisZ;
   for(;;)
   {
     rt_mb_recv(&mb_moto,(rt_uint32_t*)&pframe,RT_WAITING_FOREVER);
@@ -77,12 +151,16 @@ void Moto_Ctrl_Task(void* pdata)
     rt_thread_delay(20);
     if(pframe[1] == 0x00)
     {
+      rt_uint32_t e = 0;
       Axis_t axis = (Axis_t)pframe[2];
 //      uint8_t acc = pframe[3];
       uint16_t speed = pframe[3]*256+pframe[4];
       int32_t steps = (pframe[5]<<24)+(pframe[6]<<16)+(pframe[7]<<8)+pframe[8];
       uint16_t timeout = (pframe[9]<<8)+pframe[10];
       timeout = timeout*10;
+      axis_evt[AxisX] = MOTO_EVENT_STEPOVER_0 | MOTO_EVENT_STEPOVER_1;
+      axis_evt[AxisY] = MOTO_EVENT_STEPOVER_0 | MOTO_EVENT_STEPOVER_1;
+      axis_evt[AxisZ] = MOTO_EVENT_STEPOVER_2;
       // 释放用于存储消息命令的内存块
       rt_mp_free(pframe);
       rt_event_recv(&evt_moto_pos,0xffffffff,RT_EVENT_FLAG_OR|RT_EVENT_FLAG_CLEAR,0,RT_NULL);
@@ -91,34 +169,17 @@ void Moto_Ctrl_Task(void* pdata)
           sizeof(thread_emergent_stack),4,10);
       rt_thread_startup(&thread_emergent);
       
-      MOTO_Move(axis,steps,speed);
-
-      //需要等到电机运行停止，再处理之后的邮件信息
-      if(rt_event_recv(&evt_moto_pos,(MOTO_EVENT_STEPOVER<<9*axis)|MOTO_EVENT_RX_COLLID,RT_EVENT_FLAG_OR | RT_EVENT_FLAG_CLEAR,timeout,RT_NULL)!= RT_EOK)
-      {
-        MOTO_Stop(axis);
-        switch(axis)
-        {
-          case AxisX:report_notify(NTF_MOTO_OT_X);break;
-          case AxisY:report_notify(NTF_MOTO_OT_Y);break;
-          case AxisZ:report_notify(NTF_MOTO_OT_Z);break; 
-          default:break;
-        }
+      MoveAxisFunc[axis](steps,speed);
+      if(rt_event_recv(&evt_moto_pos,axis_evt[axis],RT_EVENT_FLAG_AND | RT_EVENT_FLAG_CLEAR,timeout,RT_NULL) != RT_EOK) {
+        StopAxisFunc[axis]();
+        report_notify(NTF_MOTO_OT_X + axis*6);
+      } else {
+        StopAxisX();
+        report_notify(NTF_MOTO_COMP_X + axis*6);
       }
-      else
-      {
-        MOTO_Stop(axis);
-        switch(axis)
-        {
-          case AxisX:report_notify(NTF_MOTO_COMP_X);break;
-          case AxisY:report_notify(NTF_MOTO_COMP_Y);break;
-          case AxisZ:report_notify(NTF_MOTO_COMP_Z);break; 
-          default:break;
-        }
-      } 
-      rt_enter_critical();
+
       rt_thread_detach(&thread_emergent);
-      rt_exit_critical();
+      motionAxis = AxisUnknown;
     }
     else if(pframe[1] == 0x01)    // reset 
     {
@@ -127,71 +188,55 @@ void Moto_Ctrl_Task(void* pdata)
       Axis_t axis = pframe[2];
       uint16_t speed = pframe[3]*256 + pframe[4];
       uint32_t timeout = pframe[5]*256 + pframe[6];
+      int32_t steps;
       rt_mp_free(pframe);
-      
       if(MOTO_GetPosition(axis) != MOTO_POSITION_ZERO)
       {
         rt_event_recv(&evt_moto_pos,0xffffffff,RT_EVENT_FLAG_OR|RT_EVENT_FLAG_CLEAR,0,RT_NULL);
         // 启动紧急制动任务
         rt_thread_init(&thread_emergent,"emer",Moto_Emergent_Break_Task,(void*)(rt_uint32_t)axis,thread_emergent_stack,
             sizeof(thread_emergent_stack),4,10);
-        rt_enter_critical();
         rt_thread_startup(&thread_emergent);
-        rt_exit_critical();
         
-        MOTO_Reset(axis,speed);
-        if(MOTO_GetDirection(axis) != MOTO_STATUS_POSITIVE)
-        {
-          rs =  rt_event_recv(&evt_moto_pos,(MOTO_EVENT_ZERO_EXIT_X<<9*axis),RT_EVENT_FLAG_CLEAR|RT_EVENT_FLAG_OR,timeout,RT_NULL);
+        switch(MOTO_GetPosition(axis)){
+          case MOTO_POSITION_NEAR:
+          case MOTO_POSITION_OVERNEAR:
+          case MOTO_POSITION_ZERONEAR:
+            steps = 2000000;
+            break;
+          case MOTO_POSITION_ZERO:
+          case MOTO_POSITION_FAR:
+          case MOTO_POSITION_OVERFAR:
+          case MOTO_POSITION_ZEROFAR:
+            steps = -2000000;
+            break;
         }
-        else
-        {
-          rs =  rt_event_recv(&evt_moto_pos,(MOTO_EVENT_ZERO_ENTER_X<<9*axis),RT_EVENT_FLAG_CLEAR|RT_EVENT_FLAG_OR,timeout,RT_NULL);
-          if(rs == RT_EOK)
-          {
-            rt_thread_delay(200);
-            MOTO_Move(axis,-100000,6400);
-            rs = rt_event_recv(&evt_moto_pos,(MOTO_EVENT_ZERO_EXIT_X<<9*axis),RT_EVENT_FLAG_CLEAR|RT_EVENT_FLAG_OR,timeout,RT_NULL);
-          }
-        }
-        MOTO_Stop(axis);
-//        MOTO_EmergentBreak(axis);
-//        rt_event_recv(&evt_moto_pos,(MOTO_EVENT_STEPOVER_X<<9*axis),RT_EVENT_FLAG_CLEAR|RT_EVENT_FLAG_OR,1000,RT_NULL);
+        MoveAxisFunc[axis](steps,1000);
+        rt_kprintf("Reset Axis[%d]\n",axis);
+//        if(!motionDirection){
+          rs = rt_event_recv(&evt_moto_pos,(MOTO_EVENT_ZERO_ENTER_X<<9*axis),  RT_EVENT_FLAG_CLEAR|RT_EVENT_FLAG_OR,timeout,RT_NULL);
+//        } else {
+//          rs = rt_event_recv(&evt_moto_pos,(MOTO_EVENT_ZERO_ENTER_X<<9*axis),RT_EVENT_FLAG_CLEAR|RT_EVENT_FLAG_OR,timeout,RT_NULL);
+//          StopAxisFunc[axis]();
+//          if(rs == RT_EOK){
+//            rt_thread_delay(200);
+//            MoveAxisFunc[axis](-100000,1000);
+//            rs = rt_event_recv(&evt_moto_pos,(MOTO_EVENT_ZERO_EXIT_X<<9*axis),RT_EVENT_FLAG_CLEAR|RT_EVENT_FLAG_OR,timeout,RT_NULL);
+//          }
+//        }
+        StopAxisFunc[axis]();
         if(rs != RT_EOK)
         {
-          switch(axis)
-          {
-            case AxisX:report_notify(NTF_MOTO_OT_X);break;
-            case AxisY:report_notify(NTF_MOTO_OT_Y);break;
-            case AxisZ:report_notify(NTF_MOTO_OT_Z);break; 
-            default:break;
-          }
+          report_notify(NTF_MOTO_OT_X + axis*6);
         }
         else
         {
-          switch(axis)
-          {
-            case AxisX:report_notify(NTF_MOTO_RESET_X);break;
-            case AxisY:report_notify(NTF_MOTO_RESET_Y);break;
-            case AxisZ:report_notify(NTF_MOTO_RESET_Z);break; 
-            default:break;
-          }
+          report_notify(NTF_MOTO_RESET_X + axis*6);
         }
-        
-        rt_enter_critical();
         rt_thread_detach(&thread_emergent);
-        rt_exit_critical();
       }
-      else
-      {
-        switch(axis)
-        {
-          case AxisX:report_notify(NTF_MOTO_RESET_X);break;
-          case AxisY:report_notify(NTF_MOTO_RESET_Y);break;
-          case AxisZ:report_notify(NTF_MOTO_RESET_Z);break; 
-          default:break;
-        }
-      }
+      rt_kprintf("Position:%d\n",MOTO_GetPosition(axis));
+      motionAxis = AxisUnknown;
     }
     else if(0x02 == pframe[1])
     {
@@ -224,12 +269,20 @@ void Moto_Emergent_Break_Task(void* pdata)
     rt_exit_critical();
     //清空邮箱内容   
     while(rt_mb_recv(&mb_moto,&value,0)==RT_EOK);
-    axis = MOTO_GetRunningAxis();
     // 启动紧急制动动作
-    MOTO_EmergentBreak(axis);
+//    MOTO_EmergentBreak(axis);
+    if(axis == AxisZ) {
+      MOTO_EmergentBreak(2);
+      rt_event_recv(&evt_moto_pos,MOTO_EVENT_STEPOVER_2,RT_EVENT_FLAG_OR|RT_EVENT_FLAG_CLEAR,RT_WAITING_FOREVER,RT_NULL);
+    } else {
+      MOTO_EmergentBreak(0);
+      MOTO_EmergentBreak(1);
+      rt_event_recv(&evt_moto_pos,MOTO_EVENT_STEPOVER_0 | MOTO_EVENT_STEPOVER_1,RT_EVENT_FLAG_AND|RT_EVENT_FLAG_CLEAR,RT_WAITING_FOREVER,RT_NULL);
+    }
+
 
     // 等待电机紧急刹车结束
-    rt_event_recv(&evt_moto_pos,(MOTO_EVENT_STEPOVER_X<<9*axis),RT_EVENT_FLAG_OR|RT_EVENT_FLAG_CLEAR,RT_WAITING_FOREVER,RT_NULL);
+//    rt_event_recv(&evt_moto_pos,(MOTO_EVENT_STEPOVER_X<<9*axis),RT_EVENT_FLAG_OR|RT_EVENT_FLAG_CLEAR,RT_WAITING_FOREVER,RT_NULL);
     switch(axis)
     {
       case AxisX:report_notify(NTF_MOTO_EMER_X);break;
@@ -256,7 +309,7 @@ void Moto_Emergent_Break_Task(void* pdata)
 //    MOTO_EmergentBreak(axis);
 //    // 等待电机步进结束
 //    rt_event_recv(&evt_moto_pos,MOTO_EVENT_STEPOVER,RT_EVENT_FLAG_OR|RT_EVENT_FLAG_CLEAR,RT_WAITING_FOREVER,RT_NULL);
-    MOTO_Disable();
+//    MOTO_Disable();
 //    // 清空事件
     rt_event_recv(&evt_moto_pos,0xffffffff,RT_EVENT_FLAG_OR|RT_EVENT_FLAG_CLEAR,0,RT_NULL);
     // 重新启动电机服务任务
@@ -264,6 +317,7 @@ void Moto_Emergent_Break_Task(void* pdata)
     rt_enter_critical();
     rt_thread_startup(&thread_moto);
     rt_exit_critical();
+    motionAxis = AxisUnknown;
   }
 }
 __STATIC_INLINE rt_uint16_t ReadReg(rt_int16_t cmd)
@@ -354,6 +408,15 @@ __STATIC_INLINE rt_uint16_t ReadReg(rt_int16_t cmd)
     case REG_VBAT_R:
       val = ADC_Get_VBAT();
       break;
+    case REG_XPOS_R :
+      val = MOTO_GetPosition(AxisX);
+      break;
+    case REG_YPOS_R:
+      val = MOTO_GetPosition(AxisY);
+      break;
+    case REG_ZPOS_R:
+      val = MOTO_GetPosition(AxisZ);
+      break;
   }
   return val;
 }
@@ -374,6 +437,7 @@ static void WriteReg(rt_uint16_t cmd,rt_uint16_t val)
       break;
     case REG_LED_W:
       WRITE_IO(SW_LED0_GPIO_Port,SW_LED0_Pin,val);
+      break;
     case REG_LAMP_W:
       val = !val;
       WRITE_IO(SW_LAMP_GPIO_Port,SW_LAMP_Pin,val);
@@ -534,8 +598,6 @@ void MX_RT_Thread_Process(void)
 {
   Axis_t axis;
   rt_uint32_t mail;
-  rt_uint16_t  vbat;
-  WriteReg(REG_FAN1_W,0);
   report_notify(NTF_DEVICE_RESET);
   uint32_t loopcnt = 0;           
   rt_kprintf("Program created at %s,%s\n",__TIME__,__DATE__);
@@ -552,23 +614,26 @@ void MX_RT_Thread_Process(void)
 //    rt_kputs("ABCDEFGHIJKLMNOPQRSTUVWXYZ\n");
     LL_GPIO_ResetOutputPin(SW_LED0_GPIO_Port,SW_LED0_Pin);
 //    rt_kprintf("Loop times : %lu\n",++loopcnt);
-    axis = MOTO_GetRunningAxis();
-    
-    
+    axis = GetMotionAxis();
+
     if(axis != AxisUnknown)
     {
-      rt_kprintf("Axis:%d -Remaind steps:%lu\n",axis,MOTO_GetRemaindSteps(axis));
+      if(axis == AxisZ)
+        rt_kprintf("Motor:%d -Remaind steps:%lu\n",2,MOTO_GetRemaindSteps(2));
+      else { 
+        rt_kprintf("Motor:%d -Remaind steps:%lu\n",0,MOTO_GetRemaindSteps(0));
+        rt_kprintf("Motor:%d -Remaind steps:%lu\n",1,MOTO_GetRemaindSteps(1));
+      }
     }
     else
     {
 //      rt_kprintf("USART2 CR1:0x%08x, ",USART2->CR1);
-      vbat = ADC_Get_VBAT();
-//      rt_kprintf("ISR:0x%08x\n",USART2->ISR);
       if(Uart_Get_Error())
       {
         rt_kputs("Frame error reset\n");
         Uart_Reset_Error();
       }
     }
+    
   }
 }

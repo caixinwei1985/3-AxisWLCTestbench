@@ -21,7 +21,7 @@
 #include "adc.h"
 
 /* USER CODE BEGIN 0 */
-
+#include "rtthread.h"
 /* USER CODE END 0 */
 
 /* ADC init function */
@@ -98,9 +98,23 @@ void MX_ADC_Init(void)
   ADC_REG_InitStruct.Overrun = LL_ADC_REG_OVR_DATA_PRESERVED;
   LL_ADC_REG_Init(ADC1, &ADC_REG_InitStruct);
   LL_ADC_REG_SetSequencerScanDirection(ADC1, LL_ADC_REG_SEQ_SCAN_DIR_FORWARD);
-  LL_ADC_SetSamplingTimeCommonChannels(ADC1, LL_ADC_SAMPLINGTIME_1CYCLE_5);
+  LL_ADC_SetSamplingTimeCommonChannels(ADC1, LL_ADC_SAMPLINGTIME_41CYCLES_5);
   LL_ADC_DisableIT_EOC(ADC1);
-  LL_ADC_DisableIT_EOS(ADC1);
+  LL_ADC_DisableIT_EOS(ADC1); 
+  
+  if ((ADC1->CR & ADC_CR_ADEN) != 0) /* (1) */
+  {
+    ADC1->CR |= ADC_CR_ADDIS; /* (2) */
+  }
+  while ((ADC1->CR & ADC_CR_ADEN) != 0);
+  ADC1->CFGR1 &= ~ADC_CFGR1_DMAEN; /* (3) */
+  ADC1->CR |= ADC_CR_ADCAL; /* (4) */
+  while ((ADC1->CR & ADC_CR_ADCAL) != 0) /* (5) */
+  {
+  /* For robust implementation, add here time-out management */
+  }
+  LL_ADC_Enable(ADC1);
+  ADC1_COMMON->CCR |= ADC_CCR_VBATEN;
 
 }
 
@@ -114,6 +128,7 @@ uint16_t ADC_Get_NTC_Volt(uint32_t ch)
   dr = LL_ADC_REG_ReadConversionData12(ADC1);
   LL_ADC_REG_SetSequencerChRem(ADC1,ch);
   dr = dr*3300/4095;
+  return dr;
 }
 
 /** 
@@ -124,16 +139,16 @@ uint16_t ADC_Get_VBAT(void)
 {
   int32_t dr;
   // 选定通道
+  
   LL_ADC_REG_SetSequencerChAdd(ADC1,LL_ADC_CHANNEL_VBAT);
   // 启动转换
   LL_ADC_REG_StartConversion(ADC1);
   // 等待结果
   while(LL_ADC_REG_IsConversionOngoing(ADC1));
-  dr = LL_ADC_REG_ReadConversionData12(ADC1);
+  dr = LL_ADC_REG_ReadConversionData12(ADC1)&0x0fff;
   LL_ADC_REG_SetSequencerChRem(ADC1,LL_ADC_CHANNEL_VBAT);
   dr = dr*3300/4095*2;
   return (uint16_t)dr;
- 
 }
 
 /* USER CODE END 1 */

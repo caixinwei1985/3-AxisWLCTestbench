@@ -47,6 +47,9 @@
 #define REG_PROT1_R     0x0219
 #define REG_PROT2_R     0x021a
 #define REG_VBAT_R      0x021b
+#define REG_XPOS_R      0x021c
+#define REG_YPOS_R      0x021d
+#define REG_ZPOS_R      0x021e
 
 #define CMD_MOTO_MOVE   0x0300  /* DATA 9 Bytes:  byte0 axis,byte1:byte2 speed,byte3:byte6 steps,byte7:byte8 timeout */
 #define CMD_MOTO_RST    0x0301  /* DATA 5 Bytes:  byte0 axis,byte1:byte2 spedd,byte3:byte4 timeout  */
@@ -71,6 +74,7 @@
 #define NTF_JS2D3_PRESS 0x0410
 #define NTF_RXCOL_TRIG  0x0411  
 #define NTF_MOTO_EMER   0x0412  
+
 
 #define NTF_MOTO_COMP_X   0x0413
 #define NTF_MOTO_OT_X     0x0414

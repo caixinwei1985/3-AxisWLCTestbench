@@ -52,7 +52,7 @@
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN PFP */
-void Buttons_FreshState();
+void Buttons_FreshState(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -64,6 +64,8 @@ void Buttons_FreshState();
 
 /* USER CODE BEGIN EV */
 extern struct rt_event evt_moto_pos;
+Axis_t GetMotionAxis(void);
+uint8_t GetMotionDirection(void);
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -121,7 +123,7 @@ void EXTI0_1_IRQHandler(void)
   {
     LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_1);
     /* USER CODE BEGIN LL_EXTI_LINE_1 */
-    
+                                      
     /* USER CODE END LL_EXTI_LINE_1 */
   }
   /* USER CODE BEGIN EXTI0_1_IRQn 1 */
@@ -142,13 +144,13 @@ void EXTI2_3_IRQHandler(void)
     LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_2);
     /* USER CODE BEGIN LL_EXTI_LINE_2 */
     //YSW1
-    if(MOTO_GetRunningAxis() == AxisY)
+    if(GetMotionAxis() == AxisY)
     {
       if((LL_GPIO_ReadInputPort(YSW1_GPIO_Port) & YSW1_Pin) != 0)// enter
       {
         log("Y near enter\n");
         MOTO_OnNearPointEnter(AxisY);
-        if(MOTO_GetDirection(AxisY)!= MOTO_STATUS_POSITIVE)
+        if(GetMotionDirection()!= 1)
         {
           log("Move neg\n");
           rt_event_send(&evt_moto_pos,MOTO_EVENT_NEAR_ENTER_Y);
@@ -175,8 +177,8 @@ void EXTI2_3_IRQHandler(void)
     LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_3);
     /* USER CODE BEGIN LL_EXTI_LINE_3 */
     //YSW0
-    if(MOTO_GetRunningAxis()!= AxisY)
-      return;
+//    if(GetMotionAxis()!= AxisY)
+//      return;
     if((LL_GPIO_ReadInputPort(YSW0_GPIO_Port)&YSW0_Pin) == 0)
     {
       log("y zero enter\n");
@@ -209,13 +211,13 @@ void EXTI4_15_IRQHandler(void)
     LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_4);
     /* USER CODE BEGIN LL_EXTI_LINE_4 */
     //XSW2,
-    if(MOTO_GetRunningAxis()!= AxisX)
+    if(GetMotionAxis()!= AxisX)
       return;
     if((LL_GPIO_ReadInputPort(XSW2_GPIO_Port)&XSW2_Pin)!=0) // enter
     {
       log("x far enter\n");
       MOTO_OnFarPointEnter(AxisX);
-      if(MOTO_GetDirection(AxisX) == MOTO_STATUS_POSITIVE)
+      if(GetMotionDirection() == 1)
       {
         rt_event_send(&evt_moto_pos,MOTO_EVENT_FAR_ENTER_X);
         report_notify(NTF_MOTO_FAR_X);
@@ -236,13 +238,13 @@ void EXTI4_15_IRQHandler(void)
     LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_5);
     /* USER CODE BEGIN LL_EXTI_LINE_5 */
     //XSW1
-    if(MOTO_GetRunningAxis()!=AxisX)
+    if(GetMotionAxis()!=AxisX)
       return;
     if((LL_GPIO_ReadInputPort(XSW1_GPIO_Port)&XSW1_Pin) != 0)// enter
     {
       log("x near enter\n");
       MOTO_OnNearPointEnter(AxisX);
-      if(MOTO_GetDirection(AxisX)!= MOTO_STATUS_POSITIVE)
+      if(GetMotionDirection()!= 1)
       {
         rt_event_send(&evt_moto_pos,MOTO_EVENT_NEAR_ENTER_X);
         report_notify(NTF_MOTO_NEAR_X);
@@ -266,7 +268,7 @@ void EXTI4_15_IRQHandler(void)
   {
     LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_6);
     /* USER CODE BEGIN LL_EXTI_LINE_6 */
-    if(MOTO_GetRunningAxis()!= AxisX)
+    if(GetMotionAxis()!= AxisX)
       return;
     if((LL_GPIO_ReadInputPort(XSW0_GPIO_Port)&XSW0_Pin) == 0)
     {
@@ -295,13 +297,13 @@ void EXTI4_15_IRQHandler(void)
     LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_10);
     /* USER CODE BEGIN LL_EXTI_LINE_10 */
     //ZSW1
-    if(MOTO_GetRunningAxis()!=AxisZ)
+    if(GetMotionAxis()!=AxisZ)
       return;
     if((LL_GPIO_ReadInputPort(ZSW1_GPIO_Port)&ZSW1_Pin) == 0)// enter
     {
       log("Z near enter\n");
       MOTO_OnNearPointEnter(AxisZ);
-      if(MOTO_GetDirection(AxisZ)!= MOTO_STATUS_POSITIVE)
+      if(GetMotionDirection()!= 1)
       {
         rt_event_send(&evt_moto_pos,MOTO_EVENT_NEAR_ENTER_Z);
         report_notify(NTF_MOTO_NEAR_Z);
@@ -326,7 +328,7 @@ void EXTI4_15_IRQHandler(void)
     LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_11);
     /* USER CODE BEGIN LL_EXTI_LINE_11 */
     //ZSW0
-    if(MOTO_GetRunningAxis()!= AxisZ)
+    if(GetMotionAxis()!= AxisZ)
       return;
     if((LL_GPIO_ReadInputPort(ZSW0_GPIO_Port)&ZSW0_Pin) == 0)
     {
@@ -349,13 +351,13 @@ void EXTI4_15_IRQHandler(void)
     /* USER CODE BEGIN LL_EXTI_LINE_12 */
     //YSW2
     //非对应轴向触发限位，忽略
-    if(MOTO_GetRunningAxis()!= AxisY)
+    if(GetMotionAxis()!= AxisY)
       return;
     if((LL_GPIO_ReadInputPort(YSW2_GPIO_Port)&YSW2_Pin)!=0) // enter
     {
       log("y far enter\n");
       MOTO_OnFarPointEnter(AxisY);
-      if(MOTO_GetDirection(AxisY) == MOTO_STATUS_POSITIVE)
+      if(GetMotionDirection() == 1)
       {
         rt_event_send(&evt_moto_pos,MOTO_EVENT_FAR_ENTER_Y);
         report_notify(NTF_MOTO_FAR_Y);
@@ -390,13 +392,13 @@ void EXTI4_15_IRQHandler(void)
     LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_15);
     /* USER CODE BEGIN LL_EXTI_LINE_15 */
     //ZSW2
-    if(MOTO_GetRunningAxis()!= AxisZ)
+    if(GetMotionAxis()!= AxisZ)
       return;
     if((LL_GPIO_ReadInputPort(ZSW2_GPIO_Port)&ZSW2_Pin)==0) // enter
     {
       log("Z far enter\n");
       MOTO_OnFarPointEnter(AxisZ);
-      if(MOTO_GetDirection(AxisZ) == MOTO_STATUS_POSITIVE)
+      if(GetMotionDirection() == 1)
       {
         rt_event_send(&evt_moto_pos,MOTO_EVENT_FAR_ENTER_Z);
         report_notify(NTF_MOTO_FAR_Z);
@@ -427,12 +429,23 @@ void TIM1_BRK_UP_TRG_COM_IRQHandler(void)
   if(TIM1->SR&TIM_SR_UIF)
   {
     TIM1->SR &= ~TIM_SR_UIF;
-    Axis_t axis = MOTO_GetRunningAxis();
-    uint16_t speed = MOTO_ISRHandler(axis);
+    Axis_t axis = GetMotionAxis();
+    uint16_t speed ;
+    if(axis == AxisX || axis == AxisY)
+      speed = MOTO_ISRHandler(0);
+    else if(axis == AxisZ)
+      speed = MOTO_ISRHandler(2);
+    else
+      return ;
     if(speed == 0)
     {
-      MOTO_Stop(axis);
-      rt_event_send(&evt_moto_pos,MOTO_EVENT_STEPOVER<<axis*9);
+      if(axis == AxisZ){
+        MOTO_Stop(2);
+        rt_event_send(&evt_moto_pos,MOTO_EVENT_STEPOVER_2);
+      } else {
+        MOTO_Stop(0);
+        rt_event_send(&evt_moto_pos,MOTO_EVENT_STEPOVER_0);
+      }
     }
     else
     {
@@ -440,13 +453,11 @@ void TIM1_BRK_UP_TRG_COM_IRQHandler(void)
       if(arr>0xffff)
         arr = 0xffff;
       TIM1->ARR = arr;
-      switch(MOTO_GetRunningAxis())
+      switch(axis)
       {
         case AxisX:
-          TIM1->CCR4=TIM1->ARR/2;
-          break;
         case AxisY:
-          TIM1->CCR3=TIM1->ARR/2;
+          TIM1->CCR4=TIM1->ARR/2;
           break;
         case AxisZ:
           TIM1->CCR2=TIM1->ARR/2;
@@ -516,6 +527,26 @@ void USART2_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
-
+void TIM3_IRQHandler()
+{
+  if(TIM3->SR & TIM_SR_UIF)
+  {
+    TIM3->SR &= ~TIM_SR_UIF;
+    uint16_t speed = MOTO_ISRHandler(1);
+    if(speed == 0)
+    {
+      MOTO_Stop(1);
+      rt_event_send(&evt_moto_pos,MOTO_EVENT_STEPOVER_1);
+    }
+    else
+    {
+      uint32_t arr = 12000000/speed;
+      if(arr>0xffff)
+        arr = 0xffff;
+      TIM3->ARR = arr;
+      TIM3->CCR4=TIM3->ARR/2;
+    }
+  }
+}
 /* USER CODE END 1 */
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

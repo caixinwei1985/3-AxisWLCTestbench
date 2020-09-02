@@ -4,6 +4,6 @@
 #include "stm32f0xx_hal.h"
 #include "stm32f0xx_hal_flash.h"
 
-void BootConfig_System();
-void BootConfig_User();
+void BootConfig_System(void);
+void BootConfig_User(void);
 #endif

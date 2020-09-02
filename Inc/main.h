@@ -113,14 +113,14 @@ uint32_t Get_GPIOPinBit(GPIO_TypeDef* port,uint32_t pin);
 #define JS1_D0_GPIO_Port GPIOC
 #define MOTOZDIR_Pin LL_GPIO_PIN_8
 #define MOTOZDIR_GPIO_Port GPIOC
-#define MOTOYDIR_Pin LL_GPIO_PIN_9
-#define MOTOYDIR_GPIO_Port GPIOC
+#define MOTOYDIR_Pin LL_GPIO_PIN_10
+#define MOTOYDIR_GPIO_Port GPIOA
 #define MOTOXDIR_Pin LL_GPIO_PIN_8
 #define MOTOXDIR_GPIO_Port GPIOA
 #define MOTOZPUL_Pin LL_GPIO_PIN_9
 #define MOTOZPUL_GPIO_Port GPIOA
-#define MOTOYPUL_Pin LL_GPIO_PIN_10
-#define MOTOYPUL_GPIO_Port GPIOA
+#define MOTOYPUL_Pin LL_GPIO_PIN_9
+#define MOTOYPUL_GPIO_Port GPIOC
 #define MOTOXPUL_Pin LL_GPIO_PIN_11
 #define MOTOXPUL_GPIO_Port GPIOA
 #define MOTOEN_Pin LL_GPIO_PIN_12
@@ -188,6 +188,7 @@ uint32_t Get_GPIOPinBit(GPIO_TypeDef* port,uint32_t pin);
 #define MOTO_EVENT_OVERNEAR_X       0x00000040
 #define MOTO_EVENT_OVERFAR_X        0x00000080
 #define MOTO_EVENT_STEPOVER_X       0x00000100
+#define MOTO_EVENT_STEPOVER_0       0x00000100
 
 #define MOTO_EVENT_ZERO_ENTER_Y     (0x00000001<<9)
 #define MOTO_EVENT_ZERO_EXIT_Y      (0x00000002<<9)
@@ -198,7 +199,7 @@ uint32_t Get_GPIOPinBit(GPIO_TypeDef* port,uint32_t pin);
 #define MOTO_EVENT_OVERNEAR_Y       (0x00000040<<9)
 #define MOTO_EVENT_OVERFAR_Y        (0x00000080<<9)
 #define MOTO_EVENT_STEPOVER_Y       (0x00000100<<9)
-
+#define MOTO_EVENT_STEPOVER_1       (0x00000100<<9)
 #define MOTO_EVENT_ZERO_ENTER_Z     (0x00000001<<18)
 #define MOTO_EVENT_ZERO_EXIT_Z      (0x00000002<<18)
 #define MOTO_EVENT_NEAR_ENTER_Z     (0x00000004<<18)
@@ -208,7 +209,7 @@ uint32_t Get_GPIOPinBit(GPIO_TypeDef* port,uint32_t pin);
 #define MOTO_EVENT_OVERNEAR_Z       (0x00000040<<18)
 #define MOTO_EVENT_OVERFAR_Z        (0x00000080<<18)
 #define MOTO_EVENT_STEPOVER_Z       (0x00000100<<18)
-
+#define MOTO_EVENT_STEPOVER_2       (0x00000100<<18)
 #define ADC_CHANNEL_NTC1          LL_ADC_CHANNEL_0
 #define ADC_CHANNEL_NTC2          LL_ADC_CHANNEL_1
 #define ADC_CHANNEL_NTC3          LL_ADC_CHANNEL_4  

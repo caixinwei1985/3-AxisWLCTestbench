@@ -122,10 +122,12 @@ __weak void frame_proc_callback(uint8_t* frame,uint16_t count)
   else if(0xff == *frame )
   {
     if( 0x00 == *(frame+1))
-      BootConfig_System(); 
-    if(0x00 == *(frame+1))
     {
-      
+      BootConfig_System(); 
+    }
+    if(0x01 == *(frame+1))
+    {
+      NVIC_SystemReset();
     }
   }
   
@@ -140,7 +142,6 @@ void recv_task(void* pdata)
   {
     if(0==async_read(1,&b,1))
       continue;
-    LL_GPIO_TogglePin(SW_LAMP_GPIO_Port,SW_LAMP_Pin);
     if(0x5A == b)
     {
       chk = 0;
